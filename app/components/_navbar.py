@@ -5,7 +5,7 @@ from ._base import BaseComponent
 
 class NavigationBar(BaseComponent):
     name = "NavigationBar"
-    sidebar_logo_path = "assets/images/favicon.png"
+    sidebar_logo_path = "https://github.com/yurukatsu/streamlit-studio/blob/master/app/assets/images/favicon.png?raw=true"
 
     @classmethod
     def render(cls):
