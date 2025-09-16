@@ -8,3 +8,6 @@ dependencies = [
     "boto3>=1.40.31",
     "streamlit>=1.49.1",
 ]
+
+[tool.poetry]
+package-mode = false
