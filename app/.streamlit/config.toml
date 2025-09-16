@@ -8,3 +8,6 @@ primaryColor = "#ff4b4b"
 
 [client]
 showSidebarNavigation = false
+
+[tool.poetry]
+package-mode = false
