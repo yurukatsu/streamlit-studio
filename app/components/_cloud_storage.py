@@ -1,6 +1,7 @@
-import io
+import time
 
 import streamlit as st
+import pandas as pd
 from botocore.exceptions import ClientError
 from settings import SessionStateManager
 from utils.s3 import get_s3_client
@@ -97,13 +98,29 @@ class S3Browser:
     def upload_file(bucket: str, prefix: str):
         """現在のフォルダにファイルをアップロード"""
         s3 = get_s3_client()
-        uploaded_file = st.file_uploader("ファイルをアップロード", type=None)
+        uploaded_files = st.file_uploader("ファイルをアップロード", type=None, accept_multiple_files=True)
 
-        if uploaded_file is not None:
-            key = prefix + uploaded_file.name
-            s3.upload_fileobj(uploaded_file, bucket, key)
-            uploaded_file = None
-            st.success(f"Success file upload: {key}", icon=":material/check_circle:")
+        if len(uploaded_files) > 0:
+            for uploaded_file in uploaded_files:
+                key = prefix + uploaded_file.name
+                s3.upload_fileobj(uploaded_file, bucket, key)
+                uploaded_file = None
+                st.success(f"Success file upload: {key}", icon=":material/check_circle:")
+            time.sleep(1)
+            st.rerun()
+
+    @staticmethod
+    @st.dialog("Delete file")
+    def delete_file(bucket: str, prefix: str):
+        """現在のフォルダからファイルを削除"""
+        s3 = get_s3_client()
+        filename = st.text_input("File name to delete", "")
+
+        if st.button("Delete"):
+            key = prefix + filename
+            s3.delete_object(Bucket=bucket, Key=key)
+            st.success(f"Deleted file: {key}", icon=":material/check_circle:")
+            time.sleep(1)
             st.rerun()
 
     @staticmethod
@@ -118,18 +135,21 @@ class S3Browser:
                 folder_key = prefix + new_folder.strip("/") + "/"
                 s3.put_object(Bucket=bucket, Key=folder_key)
                 st.success(f"Folder created: {folder_key}", icon=":material/check_circle:")
+                time.sleep(1)
                 st.rerun()
 
     @classmethod
     def show_objects(cls, bucket: str, prefix: str):
         s3 = get_s3_client()
-        response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix, Delimiter="/")
+        response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix, Delimiter="/") or {}
 
-        colA, colB = st.columns(2)
-        if colA.button("", key="upload_btn", icon=":material/file_upload:", width="stretch"):
+        cols = st.columns(3)
+        if cols[0].button("", key="upload_btn", icon=":material/file_upload:", width="stretch"):
             cls.upload_file(bucket, prefix)
-        if colB.button("", key="create_btn", icon=":material/create_new_folder:", width="stretch"):
+        if cols[1].button("", key="create_btn", icon=":material/create_new_folder:", width="stretch"):
             cls.create_folder(bucket, prefix)
+        if cols[2].button("", key="delete_btn", icon=":material/delete_forever:", width="stretch"):
+            cls.delete_file(bucket, prefix)
 
         # フォルダ一覧
         if "CommonPrefixes" in response:
@@ -141,21 +161,32 @@ class S3Browser:
                     S3State.set_prefix(folder)
                     st.rerun()
 
-        # ファイル一覧
-        if "Contents" in response:
-            st.write("Files")
-            for obj in response["Contents"]:
-                key = obj["Key"]
-                if key.endswith("/"):  # フォルダダミーは除外
-                    continue
-                filename = key[len(prefix) :]
-                size_kb = obj["Size"] / 1024
-                col1, col2, col3 = st.columns([5, 2, 1])
-                col1.write(filename)
-                col2.write(f"{size_kb:.1f} KB")
+        files = []
+        for obj in response.get("Contents", []):
+            if not obj["Key"].endswith("/"):
+                files.append({
+                    "name": obj["Key"][len(prefix):],
+                    "full_key": obj["Key"],
+                    "size": obj['Size'] / 1024,
+                    "last_modified": obj["LastModified"].strftime("%Y-%m-%d %H:%M:%S"),
+                    "download_link": cls.generate_presigned_url(bucket, obj["Key"]),
+                })
 
-                url = cls.generate_presigned_url(bucket, key)
-                col3.write(f"[Download]({url})")
+        if files:
+            df = pd.DataFrame(files)
+            st.dataframe(
+                df,
+                column_config={
+                    "name": st.column_config.TextColumn("File Name"),
+                    "full_key": st.column_config.TextColumn("S3 Key"),
+                    "size": st.column_config.NumberColumn("Size (KB)", format="%.1f"),
+                    "last_modified": st.column_config.TextColumn("Last Modified"),
+                    "download_link": st.column_config.LinkColumn("Download", display_text=":material/download:"),
+                },
+                width="stretch",
+                hide_index=True,
+                key="s3_file_table",
+            )
 
     @classmethod
     def header(cls):
