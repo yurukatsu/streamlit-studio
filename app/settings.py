@@ -36,21 +36,30 @@ class Settings:
     password = st.secrets["PASSWORD"]
     debug = st.secrets.get("DEBUG", False)
 
-    @staticmethod
-    def initialize():
-        session_states = {
+    default_session_states = {
+        "auth": {
             "authenticated": False,
-        }
-        SessionStateManager.post(session_states, overwrite=False)
+        },
+        "s3_browser": {
+            "s3_current_path": "/",
+            "s3_current_bucket": None,
+            "s3_current_object_prefix": "",
+        },
+    }
+
+    @classmethod
+    def initialize(cls):
+        for _, session_states in cls.default_session_states.items():
+            SessionStateManager.post(session_states, overwrite=False)
 
 
 class AzureSettings:
-    endpoint = st.secrets["azure"]["AZURE_OPENAI_ENDPOINT"]
-    api_key = st.secrets["azure"]["AZURE_OPENAI_API_KEY"]
-    api_version = st.secrets["azure"].get("OPENAI_API_VERSION", "2024-12-01-preview")
+    endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
+    api_key = st.secrets["AZURE_OPENAI_API_KEY"]
+    api_version = st.secrets.get("OPENAI_API_VERSION", "2024-12-01-preview")
 
 
 class AWSSettings:
-    access_key_id = st.secrets["aws"]["AWS_ACCESS_KEY_ID"]
-    secret_access_key = st.secrets["aws"]["AWS_SECRET_ACCESS_KEY"]
-    region_name = st.secrets["aws"].get("AWS_REGION_NAME", "us-east-1")
+    access_key_id = st.secrets["AWS_ACCESS_KEY_ID"]
+    secret_access_key = st.secrets["AWS_SECRET_ACCESS_KEY"]
+    region_name = st.secrets.get("AWS_REGION_NAME", "ap-northeast-1")
