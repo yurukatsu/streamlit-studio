@@ -10,7 +10,7 @@ class NavigationBar(BaseComponent):
     @classmethod
     def render(cls):
         with st.sidebar:
-            st.image(cls.sidebar_logo_path, use_container_width=True)
+            st.image(cls.sidebar_logo_path, width="stretch")
 
             st.page_link(
                 "main.py",
