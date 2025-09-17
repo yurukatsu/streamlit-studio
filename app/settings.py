@@ -52,6 +52,8 @@ class Settings:
         for _, session_states in cls.default_session_states.items():
             SessionStateManager.post(session_states, overwrite=False)
 
+        st.set_page_config(layout="wide")
+
 
 class AzureSettings:
     endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]

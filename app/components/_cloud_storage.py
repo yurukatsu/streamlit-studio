@@ -33,27 +33,23 @@ class S3State:
         """フォルダをクリックしたとき"""
         SessionStateManager.set("s3_current_object_prefix", prefix)
         SessionStateManager.set(
-            "s3_current_path", f"/{st.session_state.s3_current_bucket}/{prefix}"
+            "s3_current_path", f"/{SessionStateManager.get('s3_current_bucket')}/{prefix}"
         )
 
     @staticmethod
     def back():
         """一つ上の階層へ戻る"""
-        prefix = st.session_state.s3_current_object_prefix
+        prefix = SessionStateManager.get("s3_current_object_prefix")
         if prefix == "":
-            # バケット一覧に戻る
-            st.session_state.s3_current_bucket = None
-            st.session_state.s3_current_path = "/"
+            SessionStateManager.set("s3_current_bucket", None)
+            SessionStateManager.set("s3_current_path", "/")
             st.rerun()
 
-        # 末尾の "/" を除去して一階層戻る
         parent = "/".join(prefix.rstrip("/").split("/")[:-1])
         parent = parent + "/" if parent else ""
 
-        st.session_state.s3_current_object_prefix = parent
-        st.session_state.s3_current_path = (
-            f"/{st.session_state.s3_current_bucket}/{parent}"
-        )
+        SessionStateManager.set("s3_current_object_prefix", parent)
+        SessionStateManager.set("s3_current_path", f"/{SessionStateManager.get('s3_current_bucket')}/{parent}")
         st.rerun()
 
 
@@ -77,19 +73,14 @@ class S3Browser:
 
     @staticmethod
     def show_bucket_list(bucket_names: list[str]):
-        cols = st.columns(2)
         for bucket in bucket_names:
-            with cols[0]:
-                st.write(bucket)
-            with cols[1]:
-                if st.button(
-                    "",
-                    icon=":material/arrow_forward:",
-                    key=f"bucket-{bucket}",
-                    use_container_width=True,
-                ):
-                    S3State.set_bucket(bucket)
-                    st.rerun()
+            if st.button(
+                bucket,
+                icon=":material/cloud:",
+                key=f"bucket-{bucket}",
+            ):
+                S3State.set_bucket(bucket)
+                st.rerun()
 
     @staticmethod
     def generate_presigned_url(bucket: str, key: str, expires_in: int = 300) -> str:
@@ -101,7 +92,8 @@ class S3Browser:
             ExpiresIn=expires_in
         )
 
-    staticmethod
+    @staticmethod
+    @st.dialog("Upload your file")
     def upload_file(bucket: str, prefix: str):
         """現在のフォルダにファイルをアップロード"""
         s3 = get_s3_client()
@@ -109,34 +101,49 @@ class S3Browser:
 
         if uploaded_file is not None:
             key = prefix + uploaded_file.name
-            # S3 にアップロード
             s3.upload_fileobj(uploaded_file, bucket, key)
             uploaded_file = None
-            st.success(f"✅ アップロード成功: {key}")
+            st.success(f"Success file upload: {key}", icon=":material/check_circle:")
+            st.rerun()
 
     @staticmethod
-    def show_objects(bucket: str, prefix: str):
+    @st.dialog("Create new folder")
+    def create_folder(bucket: str, prefix: str):
+        """現在のフォルダにサブフォルダを作成"""
         s3 = get_s3_client()
+        with st.form("create_folder_form"):
+            new_folder = st.text_input("New folder name", "")
+            submitted = st.form_submit_button("Create", icon=":material/create_new_folder:")
+            if submitted and new_folder:
+                folder_key = prefix + new_folder.strip("/") + "/"
+                s3.put_object(Bucket=bucket, Key=folder_key)
+                st.success(f"Folder created: {folder_key}", icon=":material/check_circle:")
+                st.rerun()
 
-        S3Browser.upload_file(bucket, prefix)
-
-        st.divider()
-
+    @classmethod
+    def show_objects(cls, bucket: str, prefix: str):
+        s3 = get_s3_client()
         response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix, Delimiter="/")
+
+        colA, colB = st.columns(2)
+        if colA.button("", key="upload_btn", icon=":material/file_upload:", width="stretch"):
+            cls.upload_file(bucket, prefix)
+        if colB.button("", key="create_btn", icon=":material/create_new_folder:", width="stretch"):
+            cls.create_folder(bucket, prefix)
 
         # フォルダ一覧
         if "CommonPrefixes" in response:
-            st.write("📂 フォルダ")
+            st.write("Folders")
             for p in response["CommonPrefixes"]:
                 folder = p["Prefix"]
                 folder_name = folder[len(prefix) :].rstrip("/")
-                if st.button(f"➡️ {folder_name}", key=f"folder-{folder}"):
+                if st.button(folder_name, key=f"folder-{folder}", icon=":material/folder:", width="content"):
                     S3State.set_prefix(folder)
                     st.rerun()
 
         # ファイル一覧
         if "Contents" in response:
-            st.write("📄 ファイル")
+            st.write("Files")
             for obj in response["Contents"]:
                 key = obj["Key"]
                 if key.endswith("/"):  # フォルダダミーは除外
@@ -147,40 +154,28 @@ class S3Browser:
                 col1.write(filename)
                 col2.write(f"{size_kb:.1f} KB")
 
-                # if col3.button("⬇️ DL", key=f"dl-{key}"):
-                #     buffer = io.BytesIO()
-                #     s3.download_fileobj(bucket, key, buffer)
-                #     buffer.seek(0)
-                #     st.download_button(
-                #         label=f"{filename} を保存",
-                #         data=buffer,
-                #         file_name=filename,
-                #         mime="application/octet-stream",
-                #         key=f"download-{key}"
-                #     )
-                url = S3Browser.generate_presigned_url(bucket, key)
+                url = cls.generate_presigned_url(bucket, key)
                 col3.write(f"[Download]({url})")
 
     @classmethod
     def header(cls):
-        disable = st.session_state.s3_current_path == "/"
+        disable = SessionStateManager.get("s3_current_path") == "/"
         if st.button(
-            st.session_state.s3_current_path,
+            SessionStateManager.get("s3_current_path"),
             icon=":material/arrow_back:",
             disabled=disable,
-            use_container_width=True,
         ):
             S3State.back()
 
     @classmethod
     def body(cls):
-        if st.session_state.s3_current_path == "/":
+        if SessionStateManager.get("s3_current_path") == "/":
             buckets = cls.list_buckets()
             cls.show_bucket_list(buckets)
         else:
             cls.show_objects(
-                st.session_state.s3_current_bucket,
-                st.session_state.s3_current_object_prefix,
+                SessionStateManager.get("s3_current_bucket"),
+                SessionStateManager.get("s3_current_object_prefix"),
             )
 
     @classmethod
