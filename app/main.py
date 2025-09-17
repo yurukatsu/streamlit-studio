@@ -1,7 +1,9 @@
 from components import HomePage
+from settings import Settings
 
 
 def app():
+    Settings.initialize()
     HomePage.render()
 
 

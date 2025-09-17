@@ -19,3 +19,11 @@ class NavigationBar(BaseComponent):
                 help="Go to Home Page",
                 width="stretch",
             )
+
+            st.page_link(
+                "pages/chatbot.py",
+                label="Chatbot",
+                icon=":material/chat:",
+                help="Go to Chatbot Page",
+                width="stretch",
+            )
