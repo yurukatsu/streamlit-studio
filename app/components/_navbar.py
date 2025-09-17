@@ -27,3 +27,11 @@ class NavigationBar(BaseComponent):
                 help="Go to Chatbot Page",
                 width="stretch",
             )
+
+            st.page_link(
+                "pages/cloud_storage.py",
+                label="Cloud Storage",
+                icon=":material/cloud:",
+                help="Go to Cloud Storage Page",
+                width="stretch",
+            )
