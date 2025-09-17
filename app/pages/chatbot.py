@@ -1,10 +1,10 @@
-from components import HomePage, LoginForm
+from components import ChatBotPage, LoginForm, NavigationBar
 from settings import SessionStateManager, Settings
 
 
 def app():
     Settings.initialize()
-    print(Settings.debug)
+    NavigationBar.render()
 
     if Settings.debug:
         SessionStateManager.set("authenticated", True)
@@ -12,7 +12,7 @@ def app():
     if SessionStateManager.get("authenticated") is not True:
         LoginForm.render()
     else:
-        HomePage.render()
+        ChatBotPage.render()
 
 
 if __name__ == "__main__":

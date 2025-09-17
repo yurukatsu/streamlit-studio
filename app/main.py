@@ -1,9 +1,10 @@
-from components import HomePage
+from components import HomePage, NavigationBar
 from settings import Settings
 
 
 def app():
     Settings.initialize()
+    NavigationBar.render()
     HomePage.render()
 
 
