@@ -43,10 +43,12 @@ class Settings:
         }
         SessionStateManager.post(session_states, overwrite=False)
 
+
 class AzureSettings:
     endpoint = st.secrets["azure"]["AZURE_OPENAI_ENDPOINT"]
     api_key = st.secrets["azure"]["AZURE_OPENAI_API_KEY"]
     api_version = st.secrets["azure"].get("OPENAI_API_VERSION", "2024-12-01-preview")
+
 
 class AWSSettings:
     access_key_id = st.secrets["aws"]["AWS_ACCESS_KEY_ID"]
