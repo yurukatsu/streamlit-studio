@@ -1,7 +1,7 @@
 import time
 
-import streamlit as st
 import pandas as pd
+import streamlit as st
 from botocore.exceptions import ClientError
 from settings import SessionStateManager
 from utils.s3 import get_s3_client
@@ -34,7 +34,8 @@ class S3State:
         """フォルダをクリックしたとき"""
         SessionStateManager.set("s3_current_object_prefix", prefix)
         SessionStateManager.set(
-            "s3_current_path", f"/{SessionStateManager.get('s3_current_bucket')}/{prefix}"
+            "s3_current_path",
+            f"/{SessionStateManager.get('s3_current_bucket')}/{prefix}",
         )
 
     @staticmethod
@@ -50,7 +51,10 @@ class S3State:
         parent = parent + "/" if parent else ""
 
         SessionStateManager.set("s3_current_object_prefix", parent)
-        SessionStateManager.set("s3_current_path", f"/{SessionStateManager.get('s3_current_bucket')}/{parent}")
+        SessionStateManager.set(
+            "s3_current_path",
+            f"/{SessionStateManager.get('s3_current_bucket')}/{parent}",
+        )
         st.rerun()
 
 
@@ -88,9 +92,7 @@ class S3Browser:
         """指定オブジェクトの署名付きURLを生成（デフォルト5分有効）"""
         s3 = get_s3_client()
         return s3.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": bucket, "Key": key},
-            ExpiresIn=expires_in
+            "get_object", Params={"Bucket": bucket, "Key": key}, ExpiresIn=expires_in
         )
 
     @staticmethod
@@ -98,14 +100,18 @@ class S3Browser:
     def upload_file(bucket: str, prefix: str):
         """現在のフォルダにファイルをアップロード"""
         s3 = get_s3_client()
-        uploaded_files = st.file_uploader("ファイルをアップロード", type=None, accept_multiple_files=True)
+        uploaded_files = st.file_uploader(
+            "ファイルをアップロード", type=None, accept_multiple_files=True
+        )
 
         if len(uploaded_files) > 0:
             for uploaded_file in uploaded_files:
                 key = prefix + uploaded_file.name
                 s3.upload_fileobj(uploaded_file, bucket, key)
                 uploaded_file = None
-                st.success(f"Success file upload: {key}", icon=":material/check_circle:")
+                st.success(
+                    f"Success file upload: {key}", icon=":material/check_circle:"
+                )
             time.sleep(1)
             st.rerun()
 
@@ -130,11 +136,15 @@ class S3Browser:
         s3 = get_s3_client()
         with st.form("create_folder_form"):
             new_folder = st.text_input("New folder name", "")
-            submitted = st.form_submit_button("Create", icon=":material/create_new_folder:")
+            submitted = st.form_submit_button(
+                "Create", icon=":material/create_new_folder:"
+            )
             if submitted and new_folder:
                 folder_key = prefix + new_folder.strip("/") + "/"
                 s3.put_object(Bucket=bucket, Key=folder_key)
-                st.success(f"Folder created: {folder_key}", icon=":material/check_circle:")
+                st.success(
+                    f"Folder created: {folder_key}", icon=":material/check_circle:"
+                )
                 time.sleep(1)
                 st.rerun()
 
@@ -144,11 +154,17 @@ class S3Browser:
         response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix, Delimiter="/") or {}
 
         cols = st.columns(3)
-        if cols[0].button("", key="upload_btn", icon=":material/file_upload:", width="stretch"):
+        if cols[0].button(
+            "", key="upload_btn", icon=":material/file_upload:", width="stretch"
+        ):
             cls.upload_file(bucket, prefix)
-        if cols[1].button("", key="create_btn", icon=":material/create_new_folder:", width="stretch"):
+        if cols[1].button(
+            "", key="create_btn", icon=":material/create_new_folder:", width="stretch"
+        ):
             cls.create_folder(bucket, prefix)
-        if cols[2].button("", key="delete_btn", icon=":material/delete_forever:", width="stretch"):
+        if cols[2].button(
+            "", key="delete_btn", icon=":material/delete_forever:", width="stretch"
+        ):
             cls.delete_file(bucket, prefix)
 
         # フォルダ一覧
@@ -157,19 +173,28 @@ class S3Browser:
             for p in response["CommonPrefixes"]:
                 folder = p["Prefix"]
                 folder_name = folder[len(prefix) :].rstrip("/")
-                if st.button(folder_name, key=f"folder-{folder}", icon=":material/folder:", width="content"):
+                if st.button(
+                    folder_name,
+                    key=f"folder-{folder}",
+                    icon=":material/folder:",
+                    width="content",
+                ):
                     S3State.set_prefix(folder)
                     st.rerun()
 
         files = []
         for obj in response.get("Contents", []):
             if not obj["Key"].endswith("/"):
-                files.append({
-                    "name": obj["Key"][len(prefix):],
-                    "size": obj['Size'] / 1024,
-                    "last_modified": obj["LastModified"].strftime("%Y-%m-%d %H:%M:%S"),
-                    "download_link": cls.generate_presigned_url(bucket, obj["Key"]),
-                })
+                files.append(
+                    {
+                        "name": obj["Key"][len(prefix) :],
+                        "size": obj["Size"] / 1024,
+                        "last_modified": obj["LastModified"].strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        ),
+                        "download_link": cls.generate_presigned_url(bucket, obj["Key"]),
+                    }
+                )
 
         if files:
             df = pd.DataFrame(files)
@@ -179,7 +204,9 @@ class S3Browser:
                     "name": st.column_config.TextColumn("File Name"),
                     "size": st.column_config.NumberColumn("Size (KB)", format="%.1f"),
                     "last_modified": st.column_config.TextColumn("Last Modified"),
-                    "download_link": st.column_config.LinkColumn("Download", display_text=":material/download:"),
+                    "download_link": st.column_config.LinkColumn(
+                        "Download", display_text=":material/download:"
+                    ),
                 },
                 width="stretch",
                 hide_index=True,
