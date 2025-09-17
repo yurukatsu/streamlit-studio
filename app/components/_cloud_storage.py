@@ -166,7 +166,6 @@ class S3Browser:
             if not obj["Key"].endswith("/"):
                 files.append({
                     "name": obj["Key"][len(prefix):],
-                    "full_key": obj["Key"],
                     "size": obj['Size'] / 1024,
                     "last_modified": obj["LastModified"].strftime("%Y-%m-%d %H:%M:%S"),
                     "download_link": cls.generate_presigned_url(bucket, obj["Key"]),
@@ -178,7 +177,6 @@ class S3Browser:
                 df,
                 column_config={
                     "name": st.column_config.TextColumn("File Name"),
-                    "full_key": st.column_config.TextColumn("S3 Key"),
                     "size": st.column_config.NumberColumn("Size (KB)", format="%.1f"),
                     "last_modified": st.column_config.TextColumn("Last Modified"),
                     "download_link": st.column_config.LinkColumn("Download", display_text=":material/download:"),
