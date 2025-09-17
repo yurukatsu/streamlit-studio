@@ -101,9 +101,27 @@ class S3Browser:
             ExpiresIn=expires_in
         )
 
+    staticmethod
+    def upload_file(bucket: str, prefix: str):
+        """現在のフォルダにファイルをアップロード"""
+        s3 = get_s3_client()
+        uploaded_file = st.file_uploader("ファイルをアップロード", type=None)
+
+        if uploaded_file is not None:
+            key = prefix + uploaded_file.name
+            # S3 にアップロード
+            s3.upload_fileobj(uploaded_file, bucket, key)
+            uploaded_file = None
+            st.success(f"✅ アップロード成功: {key}")
+
     @staticmethod
     def show_objects(bucket: str, prefix: str):
         s3 = get_s3_client()
+
+        S3Browser.upload_file(bucket, prefix)
+
+        st.divider()
+
         response = s3.list_objects_v2(Bucket=bucket, Prefix=prefix, Delimiter="/")
 
         # フォルダ一覧
